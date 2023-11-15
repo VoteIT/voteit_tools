@@ -27,7 +27,7 @@ class Command(BaseCommand):
             required=True,
             action="extend",
             nargs="+",
-            type=str,
+            type=int,
         )
         parser.add_argument(
             "-g",
@@ -41,6 +41,12 @@ class Command(BaseCommand):
         button_pks = options.get("b")
         utskottets_btn = ReactionButton.objects.get(pk=button_pks[0])
         btn_qs = meeting.reaction_buttons.filter(pk__in=button_pks)
+        if btn_qs.count() != len(button_pks):
+            missing = set(button_pks) - set(btn_qs.values_list("pk", flat=True))
+            exit(
+                "The following button pks aren't valid for this meeting: %s"
+                % ", ".join(str(x) for x in missing)
+            )
 
         # Gruppen 21478
         utskottets_grupp = None
@@ -154,4 +160,4 @@ class Command(BaseCommand):
                 "rendered_ais": rendered_sections,
             },
         )
-        print(output)
+        self.stdout.write(output)
