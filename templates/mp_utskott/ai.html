@@ -1,0 +1,21 @@
+{% autoescape off %}
+<h1>{{ agenda_item.title }}</h1>
+
+<h2><i><u>
+{% if selected_proposals %}
+    Utskottets huvudförslag ({{ selected_proposals | length }})
+{% else %}
+    Utskottet har inga huvudförslag
+{% endif %}
+</u></i></h2>
+{% for txt in selected_proposals %}{{ txt }}{% endfor %}
+
+<h2><i><u>
+{% if other_proposals %}
+    Utskottets övriga behandlade förslag ({{ other_proposals | length }})
+{% else %}
+    Inga övriga förslag
+{% endif %}
+</u></i></h2>
+{% for txt in other_proposals %}{{ txt }}{% endfor %}
+{% endautoescape %}

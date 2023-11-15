@@ -1,0 +1,34 @@
+{% autoescape off %}
+<h3>#{{ proposal.prop_id }}</h3>
+av
+{% if proposal.meeting_group %}
+    {{ proposal.meeting_group }}
+{% else %}
+    {{ proposal.author.get_full_name }} ({{proposal.author.userid}})
+{% endif %}
+{% if proposal.paragraph %}
+    <p>Föreslår ändring av #{{ proposal.ptag }}:</p>
+    {{ proposal.body_diff_brief }}
+{% else %}
+    {{ proposal.body }}
+{% endif %}
+{% if proposal.reactions %}
+<ul>
+    {% for react in proposal.reactions %}
+        <li class="{{react.button.color}}">
+        {% if react.button.flag_mode %}
+            {% if react.count %}{{ react.button.title }}{% endif %}
+        {% else %}<!-- not flag -->
+            {{ react.button.title }}:
+            {{ react.count }}
+            {% if react.button.target %}/ {{ react.button.target }}{% endif %}
+        {% endif %}<!-- flag/btn -->
+        </li>
+    {% endfor %}
+</ul>
+{% endif %}
+{% if proposal.discussions %}
+    <h4>Utskottets kommentarer</h4>
+    {% for discussion in proposal.discussions %}{{ discussion.body }}{% endfor %}
+{% endif %}
+{% endautoescape %}
