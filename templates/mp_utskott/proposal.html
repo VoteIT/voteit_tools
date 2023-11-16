@@ -13,6 +13,7 @@ av
     {{ proposal.body }}
 {% endif %}
 {% if proposal.reactions %}
+<h4>Status för detta förslag</h4>
 <ul>
     {% for react in proposal.reactions %}
         <li class="{{react.button.color}}">
@@ -28,7 +29,7 @@ av
 </ul>
 {% endif %}
 {% if proposal.discussions %}
-    <h4>Utskottets kommentarer</h4>
+    <h4>Notering från utskottssekreteraren</h4>
     {% for discussion in proposal.discussions %}{{ discussion.body }}{% endfor %}
 {% endif %}
 {% endautoescape %}

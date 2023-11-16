@@ -35,11 +35,11 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        # Möte: 2047
         meeting: Meeting = Meeting.objects.get(pk=options.get("m"))
-        # Knapp 805 804
+        # Buttons
         button_pks = options.get("b")
         utskottets_btn = ReactionButton.objects.get(pk=button_pks[0])
+        assert utskottets_btn.flag_mode, "Utskottets knapp måste vara flagga"
         btn_qs = meeting.reaction_buttons.filter(pk__in=button_pks)
         if btn_qs.count() != len(button_pks):
             missing = set(button_pks) - set(btn_qs.values_list("pk", flat=True))
@@ -47,19 +47,20 @@ class Command(BaseCommand):
                 "The following button pks aren't valid for this meeting: %s"
                 % ", ".join(str(x) for x in missing)
             )
-
-        # Gruppen 21478
-        utskottets_grupp = None
-        if grupp_pk := options.get("g"):
-            utskottets_grupp = meeting.groups.get(pk=grupp_pk)
-
-        ai_qs = meeting.agenda_items.filter(pk__in={45003, 45049})
-
-        assert utskottets_btn.flag_mode, "Utskottets knapp måste vara flagga"
-
         btn_map = {}
         for btn_vals in btn_qs.values("pk", "title", "flag_mode", "target", "color"):
             btn_map[btn_vals["pk"]] = dict(btn_vals)
+        # Groups
+        utskottets_grupp = None
+        if grupp_pk := options.get("g"):
+            utskottets_grupp = meeting.groups.get(pk=grupp_pk)
+        # AIs
+        ai_qs = meeting.agenda_items.all()
+        if tags := options.get("t", []):
+            ai_qs = ai_qs.filter(tags__overlap=tags)
+        if not ai_qs.exists():
+            exit("Inga dagordningspunkter matchade")
+
         rendered_sections = []
         for ai in ai_qs:
             all_reactions = (
