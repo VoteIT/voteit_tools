@@ -114,7 +114,9 @@ class Command(BaseCommand):
                     data["ptag"] = paragraph_tag_map[data["paragraph"]]
                 except KeyError:
                     pass
-
+                # Adjust tags and remove prop id
+                if prop.prop_id in data["tags"]:
+                    data["tags"].remove(prop.prop_id)
                 # And attach group comments regarding this
                 if utskottets_grupp:
                     data["discussions"] = list(

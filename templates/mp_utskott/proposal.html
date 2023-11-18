@@ -12,6 +12,15 @@ av
 {% else %}
     {{ proposal.body }}
 {% endif %}
+
+{% if proposal.tags %}
+<ul>
+    {% for tag in proposal.tags %}
+        <li>#{{tag}}</li>
+    {% endfor %}
+</ul>
+{% endif %}
+
 {% if proposal.reactions %}
 <h4>Status för detta förslag</h4>
 <ul>
