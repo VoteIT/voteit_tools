@@ -116,11 +116,15 @@ class ExportOrgSerializer(serializers.ModelSerializer):
             last_action__lt=self.end_ts,
         )
 
-    def meeting_qs(self, instance: Organisation):
-        return instance.meetings.filter(
-            start_time__gt=self.start_ts,
-            start_time__lt=self.end_ts,
+    def meeting_qs(self, instance: Organisation, require_minimum=False):
+        qs = instance.meetings.filter(
+            start_time__gt=self.start_ts, start_time__lt=self.end_ts
         )
+        if require_minimum:
+            qs = qs.annotate(
+                participants_count=models.Count("participants", distinct=True)
+            ).filter(participants_count__gt=self.min_participants)
+        return qs
 
     def get_new_users(self, instance: Organisation):
         return instance.users.filter(
@@ -144,17 +148,11 @@ class ExportOrgSerializer(serializers.ModelSerializer):
         ).count()
 
     def get_meetings(self, instance: Organisation):
-        return self.meeting_qs(instance).count()
+        return self.meeting_qs(instance, require_minimum=True).count()
 
     def get_meeting_details(self, instance: Organisation):
         if self.context["detailed_meetings"]:
-            qs = (
-                self.meeting_qs(instance)
-                .annotate(
-                    participants_count=models.Count("participants", distinct=True)
-                )
-                .filter(participants_count__gt=self.min_participants)
-            )
+            qs = self.meeting_qs(instance, require_minimum=True)
             serializer = MeetingSerializer(qs, many=True)
             return serializer.data
 
@@ -199,8 +197,8 @@ class Command(BaseCommand):
         )
         parser.add_argument(
             "-p",
-            help="Ta bort möten med mindre än detta antal deltagare - standard 20",
-            default=20,
+            help="Ta bort möten med mindre än detta antal deltagare - standard 10",
+            default=10,
             type=int,
         )
         parser.add_argument("-f", help="Filnamn", required=True)
@@ -209,6 +207,12 @@ class Command(BaseCommand):
             help="Total som CSV",
             action="store_true",
             default=False,
+        )
+        parser.add_argument(
+            "--tomma",
+            help="Ta med organisationer även om de inte hade några möten över minimigräns.",
+            default=False,
+            action="store_true",
         )
 
     def handle(self, *args, **options):
@@ -219,7 +223,7 @@ class Command(BaseCommand):
         sr = SearchRange(
             start=f"{year}-01-01T00:00:01+01", end=f"{year}-12-31T23:59:59+01"
         )
-        self.stdout.write("Exporterar %s organisationer" % org_qs.count())
+        self.stdout.write("Läser %s organisationer" % org_qs.count())
         serializer = ExportOrgSerializer(
             org_qs,
             many=True,
@@ -231,26 +235,27 @@ class Command(BaseCommand):
         )
         if not serializer.data:
             exit("Ingen data matchar")
+        data = list(serializer.data)
         if not options.get("m"):  # Cleanup
-            for item in serializer.data:
+            for item in data:
                 item.pop("meeting_details")
+        if not options.get("tomma"):
+            for item in data:
+                if not item["meetings"]:
+                    data.remove(item)
         filename = options.get("f")
         with open(filename, "w") as f:
             if options.get("csv"):
                 # Printing csv
                 writer = csv.DictWriter(f, fieldnames=list(serializer.child.fields))
                 writer.writeheader()
-                for row in serializer.data:
+                for row in data:
                     writer.writerow(row)
                 self.stdout.write(
-                    self.style.SUCCESS(
-                        "CSV med %s rader skriven" % len(serializer.data)
-                    )
+                    self.style.SUCCESS("CSV med %s rader skriven" % len(data))
                 )
             else:
                 self.stdout.write(
-                    self.style.SUCCESS(
-                        "JSON med %s objekt skriven" % len(serializer.data)
-                    )
+                    self.style.SUCCESS("JSON med %s objekt skriven" % len(data))
                 )
-                json.dump(serializer.data, f)
+                json.dump(data, f)
