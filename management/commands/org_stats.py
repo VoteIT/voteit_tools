@@ -201,7 +201,11 @@ class Command(BaseCommand):
             default=10,
             type=int,
         )
-        parser.add_argument("-f", help="Filnamn", required=True)
+        parser.add_argument(
+            "-f",
+            help="Filnamn",
+            required=True,
+        )
         parser.add_argument(
             "--csv",
             help="Total som CSV",
@@ -224,27 +228,27 @@ class Command(BaseCommand):
             start=f"{year}-01-01T00:00:01+01", end=f"{year}-12-31T23:59:59+01"
         )
         self.stdout.write("Läser %s organisationer" % org_qs.count())
-        serializer = ExportOrgSerializer(
-            org_qs,
-            many=True,
-            context={
-                "sr": sr,
-                "min_participants": options.get("p"),
-                "detailed_meetings": options.get("m"),
-            },
-        )
-        if not serializer.data:
-            exit("Ingen data matchar")
-        data = list(serializer.data)
-        if not options.get("m"):  # Cleanup
-            for item in data:
-                item.pop("meeting_details")
-        if not options.get("tomma"):
-            for item in data:
-                if not item["meetings"]:
-                    data.remove(item)
         filename = options.get("f")
         with open(filename, "w") as f:
+            serializer = ExportOrgSerializer(
+                org_qs,
+                many=True,
+                context={
+                    "sr": sr,
+                    "min_participants": options.get("p"),
+                    "detailed_meetings": options.get("m"),
+                },
+            )
+            if not serializer.data:
+                exit("Ingen data matchar")
+            data = list(serializer.data)
+            if not options.get("m"):  # Cleanup
+                for item in data:
+                    item.pop("meeting_details")
+            if not options.get("tomma"):
+                for item in data:
+                    if not item["meetings"]:
+                        data.remove(item)
             if options.get("csv"):
                 # Printing csv
                 writer = csv.DictWriter(f, fieldnames=list(serializer.child.fields))
