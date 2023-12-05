@@ -244,14 +244,19 @@ class Command(BaseCommand):
             data = list(serializer.data)
             if not options.get("m"):  # Cleanup
                 for item in data:
+                    # Fungerar inte
                     item.pop("meeting_details")
             if not options.get("tomma"):
                 for item in data:
+                    # FIXME: Fungerar inte?
                     if not item["meetings"]:
                         data.remove(item)
             if options.get("csv"):
                 # Printing csv
-                writer = csv.DictWriter(f, fieldnames=list(serializer.child.fields))
+                # Ta bort raderna som inte ska finnas
+                headers = list(serializer.child.fields)
+                headers.remove("meeting_details")
+                writer = csv.DictWriter(f, fieldnames=headers)
                 writer.writeheader()
                 for row in data:
                     writer.writerow(row)
