@@ -45,7 +45,11 @@ class Command(BaseCommand):
             add_participants=not options["no_part"],
         )
         with transaction.atomic(durable=True):
+            self.stdout.write(f'Reading and importing {options["filename"]} ...')
             importer.from_file(options["filename"])
+            self.stdout.write(
+                f"Imported {len(importer.data.agenda_items)} agenda items, their contained data and {len(importer.data.groups)} groups"
+            )
             if commit:
                 self.stdout.write(self.style.SUCCESS("Saving..."))
             else:
