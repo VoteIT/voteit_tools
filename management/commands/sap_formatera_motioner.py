@@ -67,35 +67,48 @@ class Command(BaseCommand):
         GT_LIMIT = 100
         topic_to_title = {}
         for i, row in enumerate(reader, start=2):  # Headern är borta
+            title = row[title_col]
             topic_tag = slugify(row[topic_col], allow_unicode=True)
             topic_to_title[topic_tag] = row[topic_col]
             body = row[motionstext_col]
-            body += f"\n<h4>Motionär(er)</h4>\n\n{row[motionar_col]}\n"
-            body += f"<h4>Inskickad av</h4>\n\n{row[inskickad_av_col]}\n"
-            body += f"<h4>Status</h4>\n\n{row[antagen_avslagen_col]}\n"
+            if row[motionar_col]:
+                body += f"\n<h4>Motionär(er)</h4>\n\n{row[motionar_col]}\n"
+            else:
+                print(f"Motionär saknas för {title}")
+            if row[inskickad_av_col]:
+                body += f"<h4>Inskickad av</h4>\n\n{row[inskickad_av_col]}\n"
+            else:
+                print(f"Inskickad saknas för {title}")
+            if row[antagen_avslagen_col]:
+                body += f"<h4>Status</h4>\n\n{row[antagen_avslagen_col]}\n"
+            else:
+                print(f"Status saknas för {title}")
             body = self.add_paras(body)
-            title = row[title_col]
             if len(title) > TITLE_LIMIT:
                 print(
                     f"Rad {i} titel concat: '{title[:TITLE_LIMIT]}'\t | \t{title[TITLE_LIMIT:]}"
                 )
                 title = title[:TITLE_LIMIT]
             title = f"{row[topic_bokstav_col]}{row[topic_nummer_col]} {title}"
-            groupid = slugify(row[motionarsgrupp_col])[:GT_LIMIT]
-            if groupid not in meeting_groups:
-                if "," in row[motionarsgrupp_col]:
-                    print(
-                        f"Rad {i} grupptitel kan vara flera grupper: {row[motionar_col]}"
+            meeting_group = None
+            if groupid := slugify(row[motionarsgrupp_col])[:GT_LIMIT]:
+                if groupid not in meeting_groups:
+                    if "," in row[motionarsgrupp_col]:
+                        print(
+                            f"Rad {i} grupptitel kan vara flera grupper: {row[motionar_col]}"
+                        )
+                    if len(row[motionarsgrupp_col]) > GT_LIMIT:
+                        print(
+                            f"Rad {i} grupptitel concat: '{row[motionarsgrupp_col][:GT_LIMIT]}'\t | \t{row[motionarsgrupp_col][GT_LIMIT:]}"
+                        )
+                    group_title = row[motionarsgrupp_col][:GT_LIMIT]
+                    meeting_groups[groupid] = schemas.MeetingGroupData(
+                        groupid=groupid, title=group_title, created=now()
                     )
-                if len(row[motionarsgrupp_col]) > GT_LIMIT:
-                    print(
-                        f"Rad {i} grupptitel concat: '{row[motionarsgrupp_col][:GT_LIMIT]}'\t | \t{row[motionarsgrupp_col][GT_LIMIT:]}"
-                    )
-                group_title = row[motionarsgrupp_col][:GT_LIMIT]
-                meeting_groups[groupid] = schemas.MeetingGroupData(
-                    groupid=groupid, title=group_title, created=now()
-                )
-            meeting_group = groupid
+                meeting_group = groupid
+            else:
+                # No meeting group
+                print("Warning: no meeting group for %s" % title)
             proposals = [
                 schemas.ProposalData(body=x, meeting_group=meeting_group, created=now())
                 for x in row[forslags_col].splitlines()
