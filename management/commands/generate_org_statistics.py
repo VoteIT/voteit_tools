@@ -44,6 +44,8 @@ class Command(BaseCommand):
         year_end = date(year, 12, 31)
         output = [columns]
         for org in Organisation.objects.all():
+            self.stdout.write("", ending=".")
+            self.stdout.flush()
             row = [org.title]
             meeting_qs = org.meetings.filter(
                 created__gte=year_start, created__lte=year_end
@@ -80,11 +82,13 @@ class Command(BaseCommand):
                 ts_sum.append(offline_ts - online_ts)
             if ts_sum:
                 ts_total = reduce(lambda x, y: x + y, ts_sum)
-                row.append(f"{ts_total.days+(ts_total.seconds/(24*60*60)):.2f}")
+                # Jo ett bättre sätt för decimaler vore bra :)
+                row.append(f"{ts_total.days},{round(ts_total.seconds/(24*60*60)*100)}")
             else:
                 row.append(0)
             row.append(len(ts_sum))
             output.append(row)
         # Print results
+        self.stdout.write("\n\n")
         for row in output:
             self.stdout.write("\t".join(str(x) for x in row))
