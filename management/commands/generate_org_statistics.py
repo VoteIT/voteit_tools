@@ -33,8 +33,8 @@ class Command(BaseCommand):
         columns = [
             "Namn",
             "Möten (utom små)",
-            "Varav stora möten",
-            "Små möten",
+            "Varav stora möten (p => %s)" % options["plarge"],
+            "Små möten (p < %s)" % options["pmin"],
             "Antal användare under året",
             "Användningstid (dagar dec)",
             "Uppkopplingar",
