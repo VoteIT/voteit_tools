@@ -1,22 +1,26 @@
 from django.db import transaction
+from pydantic import ValidationError as PydanticValidationError
 from rest_framework import permissions
-from rest_framework import serializers
 from rest_framework import status
 from rest_framework import viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.parsers import FileUploadParser
+from rest_framework.parsers import JSONParser
 from rest_framework.parsers import MultiPartParser
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 
 from voteit.core.decorators import has_perm_drf
 from voteit.core.rest_api import router
+from voteit.core.rest_api.utils import pydantic_to_drf_validation_error
 from voteit.meeting.models import Meeting
 from voteit.meeting.permissions import MeetingPermissions
 from voteit_tools.exportimport.exporter import Exporter
 from voteit_tools.exportimport.importer import Importer
 from voteit_tools.exportimport.rest_api.renderers import YAMLRenderer
 from voteit_tools.exportimport.rest_api.serializers import ImportFileSerializer
+from voteit_tools.exportimport.rest_api.serializers import ExportFileSerializer
 
 
 @router.register("meeting-data", basename="meeting-data")
@@ -49,30 +53,36 @@ class MeetingDataViewSet(viewsets.GenericViewSet):
             status=commit and status.HTTP_201_CREATED or status.HTTP_200_OK,
         )
 
-    @has_perm_drf(MeetingPermissions.MODERATE)
     @action(
-        methods=["GET"],
+        methods=["POST"],
         detail=True,
-        serializer_class=serializers.Serializer,
         renderer_classes=[JSONRenderer],
+        parser_classes=[JSONParser],
     )
-    def json(self, request, *args, **kwargs):
-        return self._run_export("json")
-
     @has_perm_drf(MeetingPermissions.MODERATE)
+    def json(self, request, *args, **kwargs):
+        return self._run_export(request, "json")
+
     @action(
-        methods=["GET"],
+        methods=["POST"],
         detail=True,
-        serializer_class=serializers.Serializer,
         renderer_classes=[YAMLRenderer],
     )
+    @has_perm_drf(MeetingPermissions.MODERATE)
     def yaml(self, request, *args, **kwargs):
-        return self._run_export("yaml")
+        return self._run_export(request, "yaml")
 
-    def _run_export(self, file_suffix):
+    def _run_export(self, request, file_suffix):
         instance = self.get_object()
-        exporter = Exporter(instance)
-        exporter()
+        serializer = ExportFileSerializer(
+            data=request.data,
+        )
+        serializer.is_valid(raise_exception=True)
+        exporter = Exporter(instance, **serializer.data)
+        try:
+            exporter()
+        except PydanticValidationError as exc:
+            raise pydantic_to_drf_validation_error(exc)
         return Response(
             exporter.data.dict(exclude_none=True),
             headers={

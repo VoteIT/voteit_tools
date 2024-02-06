@@ -30,3 +30,14 @@ class ImportFileValidator:
 class ImportFileSerializer(serializers.Serializer):
     file = fields.FileField(max_length=1000000, validators=[ImportFileValidator()])
     commit = fields.BooleanField(default=False)
+
+
+class ExportFileSerializer(serializers.Serializer):
+    clear_group_authors = fields.BooleanField(default=False)
+    clear_authors = fields.BooleanField(default=False)
+    clear_ai_states = fields.BooleanField(default=False)
+    clear_proposal_states = fields.BooleanField(default=False)
+    clear_proposal_id = fields.BooleanField(default=False)
+    include_groups = fields.BooleanField(default=True)
+    include_proposals = fields.BooleanField(default=True)
+    include_discussions = fields.BooleanField(default=True)
