@@ -1,6 +1,5 @@
 from collections.abc import Iterator
 from contextlib import contextmanager
-from contextlib import suppress
 from contextvars import ContextVar
 from datetime import datetime
 from itertools import chain
@@ -15,7 +14,6 @@ from pydantic import Extra
 from pydantic import Field
 from pydantic import constr
 from pydantic import validator
-
 from voteit.agenda.models import AgendaItem
 from voteit.agenda.workflows import AgendaItemWf
 from voteit.discussion.models import DiscussionPost
@@ -101,9 +99,9 @@ class BaseContentData(BaseModel):
 
 
 class GroupMixin(BaseModel):
-    meeting_group: constr(
-        max_length=100, strip_whitespace=True
-    ) | None  # ID för meeting group
+    meeting_group: (
+        constr(max_length=100, strip_whitespace=True) | None
+    )  # ID för meeting group
 
     @validator("meeting_group", pre=True, allow_reuse=True)
     def meeting_groupid(cls, v):
@@ -189,9 +187,9 @@ class TextDocumentData(BaseModel):
 class ProposalData(BaseContentData, AuthorMixin, GroupMixin):
     body: str
     state: constr(strip_whitespace=True, to_lower=True, max_length=50) | None
-    prop_id: constr(
-        strip_whitespace=True, to_lower=True, max_length=50
-    ) | None  # FIXME: Should we have prop_id here?
+    prop_id: (
+        constr(strip_whitespace=True, to_lower=True, max_length=50) | None
+    )  # FIXME: Should we have prop_id here?
 
     @validator("state")
     def check_state(cls, v):
