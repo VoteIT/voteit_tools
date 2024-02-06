@@ -40,7 +40,8 @@ class ImporterTests(TestCase):
     def test_import(self):
         import_dict = read_fixture("combined_meeting_fixture.yaml")
         importer = self._cut(self.meeting)
-        importer(import_dict)
+        importer.prepare(import_dict)
+        importer.run()
         self.assertEqual({"participant@voteit.se": self.participant}, importer.user_map)
         self.assertEqual(
             {"Hot dogs", "Crisps", "Pickles"},
@@ -57,8 +58,9 @@ class ImporterTests(TestCase):
         self.participant.delete()
         import_dict = read_fixture("combined_meeting_fixture.yaml")
         importer = self._cut(self.meeting)
+        importer.prepare(import_dict)
         with self.assertRaises(User.DoesNotExist) as cm:
-            importer(import_dict)
+            importer.run()
         self.assertEqual(
             "Can't find users with the following data:\nparticipant@voteit.se",
             str(cm.exception),
@@ -68,7 +70,8 @@ class ImporterTests(TestCase):
         self.participant.delete()
         import_dict = read_fixture("combined_meeting_fixture.yaml")
         importer = self._cut(self.meeting, missing_user="create")
-        importer(import_dict)
+        importer.prepare(import_dict)
+        importer.run()
         participant = User.objects.get(email="participant@voteit.se")
         self.assertEqual("Participant", participant.first_name)
         prop = Proposal.objects.get(prop_id="loeksas-1")
@@ -78,7 +81,8 @@ class ImporterTests(TestCase):
         self.participant.delete()
         import_dict = read_fixture("combined_meeting_fixture.yaml")
         importer = self._cut(self.meeting, missing_user="blank")
-        importer(import_dict)
+        importer.prepare(import_dict)
+        importer.run()
         prop = Proposal.objects.get(prop_id="loeksas-1")
         self.assertIsNone(prop.author)
 
@@ -86,6 +90,7 @@ class ImporterTests(TestCase):
         importer = self._cut(self.meeting)
         fn = os.path.join(FIXTURES_DIR, "combined_meeting_fixture.yaml")
         importer.from_file(fn)
+        importer.run()
         self.assertTrue(Proposal.objects.get(prop_id="loeksas-1"))
 
     def test_import_add_participant(self):
@@ -93,6 +98,7 @@ class ImporterTests(TestCase):
         importer = self._cut(self.meeting, add_participants=True)
         fn = os.path.join(FIXTURES_DIR, "combined_meeting_fixture.yaml")
         importer.from_file(fn)
+        importer.run()
         self.assertEqual({ROLE_PARTICIPANT}, self.meeting.get_roles(self.participant))
 
     def test_import_dont_add_participant(self):
@@ -100,12 +106,14 @@ class ImporterTests(TestCase):
         importer = self._cut(self.meeting, add_participants=False)
         fn = os.path.join(FIXTURES_DIR, "combined_meeting_fixture.yaml")
         importer.from_file(fn)
+        importer.run()
         self.assertEqual(None, self.meeting.get_roles(self.participant))
 
     def test_clear_ai_states(self):
         importer = self._cut(self.meeting, clear_ai_states=True)
         fn = os.path.join(FIXTURES_DIR, "combined_meeting_fixture.yaml")
         importer.from_file(fn)
+        importer.run()
         self.assertEqual(
             "private", self.meeting.agenda_items.get(title="Pickles").state
         )
@@ -114,6 +122,7 @@ class ImporterTests(TestCase):
         importer = self._cut(self.meeting, clear_ai_states=False)
         fn = os.path.join(FIXTURES_DIR, "combined_meeting_fixture.yaml")
         importer.from_file(fn)
+        importer.run()
         self.assertEqual(
             "upcoming", self.meeting.agenda_items.get(title="Pickles").state
         )
@@ -121,13 +130,36 @@ class ImporterTests(TestCase):
     def test_keep_proposal_states(self):
         import_dict = read_fixture("combined_meeting_fixture.yaml")
         importer = self._cut(self.meeting, clear_proposal_states=False)
-        importer(import_dict)
+        importer.prepare(import_dict)
+        importer.run()
         prop = Proposal.objects.get(prop_id="loeksas-1")
         self.assertEqual(ProposalWf.APPROVED, prop.state)
 
     def test_clear_proposal_states(self):
         import_dict = read_fixture("combined_meeting_fixture.yaml")
         importer = self._cut(self.meeting, clear_proposal_states=True)
-        importer(import_dict)
+        importer.prepare(import_dict)
+        importer.run()
         prop = Proposal.objects.get(prop_id="loeksas-1")
         self.assertEqual(ProposalWf.PUBLISHED, prop.state)
+
+    def test_len(self):
+        importer = self._cut(self.meeting)
+        self.assertEqual(0, len(importer))
+        importer.from_file(os.path.join(FIXTURES_DIR, "combined_meeting_fixture.yaml"))
+        self.assertEqual(4, len(importer))
+
+    def test_stats(self):
+        importer = self._cut(self.meeting)
+        importer.from_file(os.path.join(FIXTURES_DIR, "combined_meeting_fixture.yaml"))
+        self.assertEqual(
+            {
+                "agenda_items": 3,
+                "diff_proposals": 1,
+                "discussion_posts": 2,
+                "groups": 1,
+                "proposals": 3,
+                "text_documents": 1,
+            },
+            importer.stats().dict(),
+        )

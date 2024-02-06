@@ -18,8 +18,12 @@ User = get_user_model()
 __all__ = ("Importer",)
 
 
+class ImportFileError(Exception): ...
+
+
 class Importer:
     version = 1
+    data: schemas.MeetingStructure = None
 
     def __init__(
         self,
@@ -48,22 +52,30 @@ class Importer:
         self.mg_map = {}
         self.user_map = {}
 
-    def __call__(self, data: dict):
+    def prepare(self, data: dict):
         with schemas.schema_context(**self.export_schema_kwargs):
             self.data = self.schema(**data)
+
+    def run(self):
         self.collect_users()
         self.populate()
 
     def from_file(self, fn):
         with open(fn, "r") as fs:
-            data = yaml.safe_load(fs)
+            return self.from_stream(fs)
+
+    def from_stream(self, stream):
+        data = yaml.safe_load(stream)
+        if not isinstance(data, dict):
+            raise ImportFileError("Import file malformed, must be key-value data")
         try:
             version = data["meta"]["version"]
         except KeyError:
-            raise KeyError("yaml file malformed, lacks meta version")
+            raise ImportFileError("yaml file malformed, lacks meta version")
         if version != self.version:
-            raise ValueError("Wrong file version, must be %s" % self.version)
-        self(data)
+            raise ImportFileError("Wrong file version, must be %s" % self.version)
+        with schemas.schema_context(**self.export_schema_kwargs):
+            self.data = self.schema(**data)
 
     @ensure_atomic
     def collect_users(self):
@@ -121,7 +133,7 @@ class Importer:
         # Groups
         for mgd in self.data.groups:
             group: MeetingGroup = self.meeting.groups.create(
-                **mgd.dict(exclude={"members"})
+                **mgd.dict(exclude={"members"}, exclude_none=True)
             )
             self.mg_map[group.groupid] = group
             if mgd.members:
@@ -172,3 +184,23 @@ class Importer:
                 if user.pk in existing_participant_pks:
                     continue
                 self.meeting.add_roles(user, ROLE_PARTICIPANT)
+
+    def __len__(self):
+        if self.data:
+            return len(self.data.agenda_items) + len(self.data.groups)
+        return 0
+
+    def stats(self) -> schemas.ImportStats:
+        stats = schemas.ImportStats(
+            agenda_items=len(self.data.agenda_items), groups=len(self.data.groups)
+        )
+        for ai in self.data.agenda_items:
+            stats.diff_proposals += len(
+                [x for x in ai.proposals if isinstance(x, schemas.DiffProposalData)]
+            )
+            stats.proposals += len(
+                [x for x in ai.proposals if isinstance(x, schemas.ProposalData)]
+            )
+            stats.discussion_posts += len(ai.discussions)
+            stats.text_documents += len(ai.text_documents)
+        return stats

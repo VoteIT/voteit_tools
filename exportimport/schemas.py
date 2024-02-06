@@ -489,3 +489,12 @@ model_to_schema = {
     DiscussionPost: DiscussionPostData,
     User: UserData,
 }
+
+
+class ImportStats(BaseModel):
+    agenda_items: int = 0
+    groups: int = 0
+    proposals: int = 0
+    diff_proposals: int = 0
+    discussion_posts: int = 0
+    text_documents: int = 0
