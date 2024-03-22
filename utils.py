@@ -7,6 +7,7 @@ from django.db import models
 from django.template.loader import render_to_string
 
 from envelope.models import Connection
+from voteit.agenda.models import AgendaItem
 from voteit.discussion.models import DiscussionPost
 from voteit.invites.models import MeetingInvite
 from voteit.organisation.models import Organisation
@@ -48,14 +49,18 @@ def render_org_stats(
         participants_count__lt=smeeting
     ).count()
     # Annat kul
+    all_meetings_qs = organisation.meetings.all()
     context["inv_count"] = MeetingInvite.objects.filter(
-        created__gte=year_start, created__lte=year_end
+        created__gte=year_start,
+        created__lte=year_end,
+        meeting__in=all_meetings_qs,
     ).count()
+    ai_qs = AgendaItem.objects.filter(meeting__in=all_meetings_qs)
     context["prop_count"] = Proposal.objects.filter(
-        created__gte=year_start, created__lte=year_end
+        created__gte=year_start, created__lte=year_end, agenda_item__in=ai_qs
     ).count()
     context["disc_count"] = DiscussionPost.objects.filter(
-        created__gte=year_start, created__lte=year_end
+        created__gte=year_start, created__lte=year_end, agenda_item__in=ai_qs
     ).count()
 
     # Antal användare under året
@@ -84,7 +89,7 @@ def render_org_stats(
         context["users_days"] = users_days = ts_total.days + round(
             ts_total.seconds / (24 * 60 * 60) * 100
         )
-        context["mean_hours"] = round(users_days / active_users, ndigits=2)
+        context["mean_hours"] = round((users_days / active_users) * 24, ndigits=2)
     else:
         context["users_days"] = 0
         context["mean_hours"] = 0
