@@ -1,3 +1,5 @@
+<html>
+<body>
 {% autoescape off %}
 <h1>{{ organisation.title }} år {{ year }}</h1>
 
@@ -18,6 +20,9 @@
 
 
 <p>I mötena har det skrivits totalt <b>{{prop_count}}</b> förslag och <b>{{disc_count}}</b> diskussionsinlägg. </p>
-{% endautoescape %}
 
-<p>Antal inbningar uner året: <b>{{inv_count}}</b></p>
+<p>Antal inbjudningar under året: <b>{{inv_count}}</b></p>
+{% endautoescape %}
+</body>
+</html>
+
