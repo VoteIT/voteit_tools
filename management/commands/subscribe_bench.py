@@ -7,15 +7,16 @@ from logging import getLogger
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
+from channels.layers import get_channel_layer
 from django.contrib.auth import get_user_model
 from django.core.management import BaseCommand
 from django.db.transaction import get_connection
 from django.test.utils import CaptureQueriesContext
-from envelope.core.channels import ContextChannel
-from envelope.messages.channels import Subscribe
+
+from envelope.channels.messages import Subscribe
+from envelope.channels.models import AppState
+from envelope.channels.models import ContextChannel
 from envelope.signals import channel_subscribed
-from envelope.utils import AppState
-from envelope.utils import channel_layer
 from envelope.utils import get_context_channel_registry
 
 from voteit_tools.utils import exectime
@@ -70,6 +71,7 @@ class Command(BaseCommand):
         self.stdout.write(f"Checking subscribe for object {instance}")
         msg = _mk_message(instance.pk, channel.name, user.pk)
         conn = get_connection()
+        channel_layer = get_channel_layer()
 
         with CaptureQueriesContext(connection=conn) as cqc:
             with patch.object(channel_layer, "send") as mocked_send:

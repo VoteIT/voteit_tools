@@ -6,8 +6,9 @@ from typing import TYPE_CHECKING
 from asgiref.sync import async_to_sync
 from django.core.management import BaseCommand
 from django_rq import get_queue
-from envelope.core.channels import ContextChannel
-from envelope.messages.channels import Subscribe
+
+from envelope.channels.messages import Subscribe
+from envelope.channels.models import ContextChannel
 from envelope.utils import get_context_channel_registry
 from voteit.meeting.models import Meeting
 
