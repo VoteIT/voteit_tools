@@ -7,7 +7,11 @@ from django.core.management import BaseCommand
 from django.utils.text import slugify
 from django.utils.timezone import now
 
-from voteit_tools.exportimport import schemas
+try:
+    from voteit.export_import import schemas
+except ImportError:
+    # Upcoming change
+    from voteit_tools.exportimport import schemas
 
 
 class Command(BaseCommand):
