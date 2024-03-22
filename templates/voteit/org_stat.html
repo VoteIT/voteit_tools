@@ -1,0 +1,23 @@
+{% autoescape off %}
+<h1>{{ organisation.title }} år {{ year }}</h1>
+
+<p>Här är statistiken för användning av VoteIT under året.</p>
+
+<h3>Användare</h3>
+<p>Under året var <b>{{active_users}}</b> användare aktiva. De spenderade totalt <b>{{users_days}}</b> dygn online.
+    Det blir <b>{{mean_hours}}</b> timmar per användare. Totalt gjordes {{connections}} uppkopplingar till VoteIT.
+</p>
+
+<h3>Möten</h3>
+<p>Ni hade <b>{{meeting_count}}</b> möte(n) under året.
+    {% if large_meeting_count %} <b>{{large_meeting_count}}</b> möte(n) hade över 500 deltagare. {% endif %}
+</p>
+{% if m_too_small %}
+<p>Ni hade också {{m_too_small}} möten med färre än 15 deltagare, men dem brukar vi inte räkna med.</p>
+{% endif %}
+
+
+<p>I mötena har det skrivits totalt <b>{{prop_count}}</b> förslag och <b>{{disc_count}}</b> diskussionsinlägg. </p>
+{% endautoescape %}
+
+<p>Antal inbningar uner året: <b>{{inv_count}}</b></p>
