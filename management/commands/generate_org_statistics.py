@@ -29,6 +29,13 @@ class Command(BaseCommand):
             type=int,
         )
 
+        parser.add_argument(
+            "--inactive",
+            help="Ta med organisationer som inte är aktiva nu",
+            default=False,
+            action="store_true",
+        )
+
     def handle(self, *args, **options):
         columns = [
             "Namn",
@@ -43,7 +50,10 @@ class Command(BaseCommand):
         year_start = date(year, 1, 1)
         year_end = date(year, 12, 31)
         output = [columns]
-        for org in Organisation.objects.all():
+        org_qs = Organisation.objects.all()
+        if not options["inactive"]:
+            org_qs = org_qs.filter(active=True)
+        for org in org_qs:
             self.stdout.write("", ending=".")
             self.stdout.flush()
             row = [org.title]
