@@ -1,10 +1,11 @@
 from auditlog.context import set_actor
 from django.core.management import BaseCommand
+from django.db import models
 from django.db import transaction
 
 from voteit.meeting.models import Meeting
-from voteit.proposal.models import Proposal
-from voteit_tools.management.utils import get_group
+from voteit.poll.app.polls.combined_simple import CombinedSimple
+from voteit.poll.utils import get_poll_method_registry
 from voteit_tools.management.utils import get_user
 
 
@@ -22,39 +23,37 @@ class Command(BaseCommand):
         #     type=str,
         # )
         parser.add_argument(
-            "-u",
-            help="User to add proposals, specify as PK or userid",
-            required=True,
+            "-u", help="User to add poll, specify as PK or userid", required=True
         )
-        parser.add_argument(
-            "-g",
-            help="Group to add proposals, uses as_group. Specify as pk or groupid",
-        )
-        parser.add_argument("--txt", help="Proposal text, use HTML!", required=True)
         parser.add_argument(
             "--commit", help="Commit result to db", action="store_true", default=False
         )
+        reg = get_poll_method_registry()
+        parser.add_argument("--method", choices=reg.keys(), default=CombinedSimple.name)
 
     def handle(self, *args, **options):
         meeting: Meeting = Meeting.objects.get(pk=options.get("m"))
         ai_qs = meeting.agenda_items.all()
-        txt = options["txt"]
         # Not needed right now
         # if tags := options.get("t", []):
         #     ai_qs = ai_qs.filter(tags__overlap=tags)
         if ai_title_start := options.get("s"):
             ai_qs = ai_qs.filter(title__startswith=ai_title_start)
-        # Avoid duplicate proposals
-        existing_prop_ai_pks = Proposal.objects.filter(
-            agenda_item__in=ai_qs, body__contains=txt
-        ).values_list("agenda_item_id", flat=True)
-        if existing_prop_ai_pks.count():
+        ai_qs = ai_qs.annotate(
+            proposals_pub_count=models.Count(
+                "proposals", filter=models.Q(proposals__state="published")
+            )
+        )
+        no_prop_ai_qs = ai_qs.filter(proposals_pub_count=0)
+        if no_prop_ai_qs.exists():
             self.stdout.write(
                 self.style.WARNING(
-                    f"There are already proposals within {existing_prop_ai_pks.count()} of the agenda items that matches the same text, they will be ignored"
+                    "The following agenda items contain no proposals in published state, so they will be removed:"
                 )
             )
-            ai_qs = ai_qs.exclude(pk__in=existing_prop_ai_pks)
+            for ai in no_prop_ai_qs:
+                self.stdout.write(ai.title)
+            ai_qs = ai_qs.difference(no_prop_ai_qs)
         if ai_qs.count():
             self.stdout.write(
                 f"Found {ai_qs.count()} agenda items in meeting {meeting.title}"
@@ -63,15 +62,15 @@ class Command(BaseCommand):
             exit("No agenda items found, aborting")
         commit = options.get("commit")
         user = get_user(options["u"], meeting)
-        if group := options.get("g"):
-            group = get_group(group, meeting)
         with transaction.atomic(durable=True):
             with set_actor(user):
-                prop_kwargs = {"author": user}
-                if group:
-                    prop_kwargs.update({"meeting_group": group, "as_group": True})
                 for ai in ai_qs:
-                    ai.proposals.create(body=txt, **prop_kwargs)
+                    poll = meeting.polls.create(
+                        agenda_item=ai, method_name=options["method"]
+                    )
+                    poll.proposals.add(*ai.proposals.all())
+                    poll.upcoming()
+                    poll.save()
             if commit:
                 self.stdout.write(self.style.SUCCESS("All done, saving"))
             else:
