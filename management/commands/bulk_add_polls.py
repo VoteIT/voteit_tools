@@ -25,6 +25,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "-u", help="User to add poll, specify as PK or userid", required=True
         )
+        parser.add_argument("--txt", help="Poll text, use HTML!", required=False)
         parser.add_argument(
             "--commit", help="Commit result to db", action="store_true", default=False
         )
@@ -62,11 +63,12 @@ class Command(BaseCommand):
             exit("No agenda items found, aborting")
         commit = options.get("commit")
         user = get_user(options["u"], meeting)
+        body = options.get("txt", "")
         with transaction.atomic(durable=True):
             with set_actor(user):
                 for ai in ai_qs:
                     poll = meeting.polls.create(
-                        agenda_item=ai, method_name=options["method"]
+                        agenda_item=ai, method_name=options["method"], body=body
                     )
                     poll.proposals.add(*ai.proposals.all())
                     poll.upcoming()
