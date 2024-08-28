@@ -68,7 +68,10 @@ class Command(BaseCommand):
             with set_actor(user):
                 for ai in ai_qs:
                     poll = meeting.polls.create(
-                        agenda_item=ai, method_name=options["method"], body=body
+                        agenda_item=ai,
+                        title=f"{ai.title[:67]} 1",
+                        method_name=options["method"],
+                        body=body,
                     )
                     poll.proposals.add(*ai.proposals.all())
                     poll.upcoming()
