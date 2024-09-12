@@ -10,7 +10,7 @@ from voteit_tools.management.utils import get_user
 
 
 class Command(BaseCommand):
-    help = "Bulk add proposals according to agenda patterns"
+    help = "Bulk add polls according to agenda patterns"
 
     def add_arguments(self, parser):
         parser.add_argument("-m", help="Meeting pk", required=True)
