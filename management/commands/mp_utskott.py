@@ -31,7 +31,7 @@ class Command(BaseCommand):
         )
         parser.add_argument(
             "-g",
-            help="Inkludera kommentarer från utskottets mötesgrupp, ange PK för gruppen",
+            help="Inkludera kommentarer från utskottets mötesgrupp, ange grupp_id för gruppen",
         )
 
     def handle(self, *args, **options):
@@ -52,8 +52,8 @@ class Command(BaseCommand):
             btn_map[btn_vals["pk"]] = dict(btn_vals)
         # Groups
         utskottets_grupp = None
-        if grupp_pk := options.get("g"):
-            utskottets_grupp = meeting.groups.get(pk=grupp_pk)
+        if groupid := options.get("g"):
+            utskottets_grupp = meeting.groups.get(groupid=groupid)
         # AIs
         ai_qs = meeting.agenda_items.all()
         if tags := options.get("t", []):
@@ -159,7 +159,7 @@ class Command(BaseCommand):
         output = render_to_string(
             "mp_utskott/utskott.html",
             {
-                "title": "Nu kör vi",
+                "title": f"Utskottsprotokoll från {meeting.title}",
                 "rendered_ais": rendered_sections,
             },
         )
