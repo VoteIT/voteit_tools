@@ -30,6 +30,11 @@ class Command(BaseCommand):
             type=int,
         )
         parser.add_argument(
+            "--all-btns",
+            help="Inkludera alla knappar",
+            action="store_true",
+        )
+        parser.add_argument(
             "-g",
             help="Inkludera kommentarer från utskottets mötesgrupp, ange grupp_id för gruppen",
         )
@@ -40,13 +45,14 @@ class Command(BaseCommand):
         button_pks = options.get("b")
         utskottets_btn = ReactionButton.objects.get(pk=button_pks[0])
         assert utskottets_btn.flag_mode, "Utskottets knapp måste vara flagga"
-        btn_qs = meeting.reaction_buttons.filter(pk__in=button_pks)
-        if btn_qs.count() != len(button_pks):
-            missing = set(button_pks) - set(btn_qs.values_list("pk", flat=True))
+        btn_qs = meeting.reaction_buttons.all()
+        if missing := set(button_pks) - set(btn_qs.values_list("pk", flat=True)):
             exit(
                 "The following button pks aren't valid for this meeting: %s"
                 % ", ".join(str(x) for x in missing)
             )
+        if not options.get("all_btns"):
+            btn_qs = btn_qs.filter(pk__in=button_pks)
         btn_map = {}
         for btn_vals in btn_qs.values("pk", "title", "flag_mode", "target", "color"):
             btn_map[btn_vals["pk"]] = dict(btn_vals)
