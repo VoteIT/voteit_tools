@@ -118,7 +118,8 @@ class Command(BaseCommand):
             user=user,
             app_state=app_state,
         )
-        for receiver in channel_subscribed._live_receivers(channel):
+        receivers, areceivers = channel_subscribed._live_receivers(channel)
+        for receiver in receivers:
             with CaptureQueriesContext(connection=conn) as cqc:
                 with exectime() as et:
                     receiver(signal=channel_subscribed, **kwargs)
@@ -128,3 +129,5 @@ class Command(BaseCommand):
                 if options["sql"]:
                     self.stdout.write(str(cqc.captured_queries))
                 print("-" * 80)
+        if areceivers:
+            print(f"There were {len(areceivers)} async receivers")
