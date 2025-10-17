@@ -38,6 +38,13 @@ class Command(BaseCommand):
             type=int,
         )
         parser.add_argument(
+            "-d",
+            help="Sätt förslag med dessa knapp(ar) som avslagna istället",
+            action="extend",
+            nargs="+",
+            type=int,
+        )
+        parser.add_argument(
             "-u",
             help="PK för användare som utför operationen - måste vara del av mötet",
             required=True,
@@ -45,7 +52,6 @@ class Command(BaseCommand):
         parser.add_argument(
             "--ai",
             help="Välj bara från dessa dagordningspunkter (annars alla kommande/pågående)",
-            required=True,
             action="extend",
             nargs="+",
             type=int,
@@ -64,20 +70,30 @@ class Command(BaseCommand):
             pk=options.get("p")
         )
         if not republish_target_btn.target:
-            exit("Återpublicera-knappen måste ha target satt.")
+            exit("(-p) Återpublicera-knappen måste ha target satt.")
         btns = meeting.reaction_buttons.filter(pk__in=options["b"], flag_mode=True)
         if btns.count() != len(options["b"]):
-            exit("Knapp-IDn stämmer inte med mötesknappar i flagg-läge.")
+            exit("(-b) Knapp-IDn stämmer inte med mötesknappar i flagg-läge.")
         if options["i"]:
             ignore_btns = meeting.reaction_buttons.filter(
                 pk__in=options["i"], flag_mode=True
             )
             if ignore_btns.count() != len(options["i"]):
                 exit(
-                    "Knapp-IDn för ignorera stämmer inte med mötesknappar i flagg-läge."
+                    "(-i) Knapp-IDn för ignorera stämmer inte med mötesknappar i flagg-läge."
                 )
         else:
             ignore_btns = []
+        if options["d"]:
+            denied_btns = meeting.reaction_buttons.filter(
+                pk__in=options["d"], flag_mode=True
+            )
+            if denied_btns.count() != len(options["d"]):
+                exit(
+                    "(-d) Knapp-IDn för avslå (denied) stämmer inte med mötesknappar i flagg-läge."
+                )
+        else:
+            denied_btns = []
         user = meeting.participants.get(pk=options.get("u"))
         if options["ai"]:
             ai_qs = meeting.agenda_items.filter(pk__in=options["ai"])
@@ -92,6 +108,15 @@ class Command(BaseCommand):
             agenda_item__in=ai_qs, state=ProposalWf.PUBLISHED
         )
         # Find proposals that match specific flags
+        if denied_btns:
+            btns = btns.union(denied_btns)
+            set_deny_object_ids = Reaction.objects.filter(
+                button__in=denied_btns,
+                object_id__in=prop_qs.values("pk"),
+                content_type=ContentType.objects.get_for_model(Proposal),
+            ).values_list("object_id", flat=True)
+        else:
+            set_deny_object_ids = []
         relevant_proposal_ids = Reaction.objects.filter(
             button__in=btns,
             object_id__in=prop_qs.values("pk"),
@@ -111,6 +136,7 @@ class Command(BaseCommand):
             .annotate(count=models.Count("pk"))
             .filter(count__gte=republish_target_btn.target)
         )
+
         self.stdout.write(
             f"Found {over_target_proposal_ids.count()} proposals over target."
         )
@@ -139,10 +165,12 @@ class Command(BaseCommand):
 
         with transaction.atomic(durable=True):
             with set_actor(user):
-                for prop in prop_qs:
+                for prop in prop_qs.filter(pk__in=set_deny_object_ids):
+                    prop.denied()
+                    prop.save()
+                for prop in prop_qs.exclude(pk__in=set_deny_object_ids):
                     prop.unhandled()
                     prop.save()
-
             if commit:
                 self.stdout.write(self.style.SUCCESS("All done, saving"))
             else:
