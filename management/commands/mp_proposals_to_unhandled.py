@@ -71,6 +71,7 @@ class Command(BaseCommand):
         )
         if not republish_target_btn.target:
             exit("(-p) Återpublicera-knappen måste ha target satt.")
+        button_ids = options["b"] + options["d"]
         btns = meeting.reaction_buttons.filter(pk__in=options["b"], flag_mode=True)
         if btns.count() != len(options["b"]):
             exit("(-b) Knapp-IDn stämmer inte med mötesknappar i flagg-läge.")
@@ -109,7 +110,6 @@ class Command(BaseCommand):
         )
         # Find proposals that match specific flags
         if denied_btns:
-            btns = btns.union(denied_btns)
             set_deny_object_ids = Reaction.objects.filter(
                 button__in=denied_btns,
                 object_id__in=prop_qs.values("pk"),
@@ -118,7 +118,7 @@ class Command(BaseCommand):
         else:
             set_deny_object_ids = []
         relevant_proposal_ids = Reaction.objects.filter(
-            button__in=btns,
+            button__in=button_ids,
             object_id__in=prop_qs.values("pk"),
             content_type=ContentType.objects.get_for_model(Proposal),
         ).values_list("object_id", flat=True)
@@ -136,7 +136,6 @@ class Command(BaseCommand):
             .annotate(count=models.Count("pk"))
             .filter(count__gte=republish_target_btn.target)
         )
-
         self.stdout.write(
             f"Found {over_target_proposal_ids.count()} proposals over target."
         )
