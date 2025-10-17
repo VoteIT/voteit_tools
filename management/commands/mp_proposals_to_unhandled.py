@@ -15,7 +15,6 @@ from voteit.reactions.models import ReactionButton
 class Command(BaseCommand):
     help = "Dra tillbaka förslag som inte uppnått speciell gräns"
     AI_STATES = (AgendaItemWf.ONGOING, AgendaItemWf.UPCOMING)
-    PROP_STATES = (ProposalWf.UNHANDLED,)
 
     def add_arguments(self, parser):
         parser.add_argument("-m", help="Meeting pk", required=True)
@@ -66,6 +65,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         meeting: Meeting = Meeting.objects.get(pk=options.get("m"))
         commit = options.get("commit")
+        verbose = options.get("verbosity") > 1
         republish_target_btn: ReactionButton = meeting.reaction_buttons.get(
             pk=options.get("p")
         )
@@ -122,6 +122,10 @@ class Command(BaseCommand):
             object_id__in=prop_qs.values("pk"),
             content_type=ContentType.objects.get_for_model(Proposal),
         ).values_list("object_id", flat=True)
+        if verbose:
+            self.stdout.write(
+                f"Found {relevant_proposal_ids.count()} proposals pre filtering"
+            )
         # Find reactions over target
         self.stdout.write(
             f"Target for {republish_target_btn} is {republish_target_btn.target}"
@@ -142,6 +146,10 @@ class Command(BaseCommand):
         relevant_proposal_ids = relevant_proposal_ids.exclude(
             object_id__in=over_target_proposal_ids.values("object_id")
         )
+        if verbose:
+            self.stdout.write(
+                f"Found {relevant_proposal_ids.count()} after removing proposals over target."
+            )
         if ignore_btns:
             relevant_proposal_ids = relevant_proposal_ids.exclude(
                 object_id__in=Reaction.objects.filter(
@@ -150,6 +158,11 @@ class Command(BaseCommand):
                     content_type=ContentType.objects.get_for_model(Proposal),
                 ).values_list("object_id", flat=True)
             )
+            if verbose:
+                self.stdout.write(
+                    f"Found {relevant_proposal_ids.count()} after removing items which have an ignore setting, "
+                    f"ie something that shouldn't be touched."
+                )
         prop_qs = Proposal.objects.filter(
             pk__in=relevant_proposal_ids, agenda_item__meeting=meeting
         )
@@ -161,13 +174,24 @@ class Command(BaseCommand):
             )
         else:
             self.stdout.write(self.style.WARNING("Nothing set as unhandled."))
-
         with transaction.atomic(durable=True):
             with set_actor(user):
-                for prop in prop_qs.filter(pk__in=set_deny_object_ids):
+                if prop_qs.exists():
+                    pass
+                else:
+                    self.stdout.write(self.style.WARNING("Nothing set as unhandled."))
+                    exit()
+                deny_qs = prop_qs.filter(pk__in=set_deny_object_ids)
+                unhandle_qs = prop_qs.exclude(pk__in=set_deny_object_ids)
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f"Setting {deny_qs.count()} as denided and {unhandle_qs.count()} as unhandled."
+                    )
+                )
+                for prop in deny_qs:
                     prop.denied()
                     prop.save()
-                for prop in prop_qs.exclude(pk__in=set_deny_object_ids):
+                for prop in unhandle_qs:
                     prop.unhandled()
                     prop.save()
             if commit:
