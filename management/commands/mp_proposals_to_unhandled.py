@@ -78,9 +78,8 @@ class Command(BaseCommand):
         else:
             self.stdout.write(self.style.WARNING("No matching agenda items"))
             exit("Nothing to do")
-
         prop_qs = Proposal.objects.filter(
-            agenda_item__in=ai_qs, state__in=ProposalWf.PUBLISHED
+            agenda_item__in=ai_qs, state=ProposalWf.PUBLISHED
         )
         # Find proposals that match specific flags
         relevant_proposal_ids = Reaction.objects.filter(
@@ -105,17 +104,29 @@ class Command(BaseCommand):
         self.stdout.write(
             f"Found {over_target_proposal_ids.count()} proposals over target."
         )
-        relevant_proposal_ids -= over_target_proposal_ids
+        relevant_proposal_ids = relevant_proposal_ids.exclude(
+            object_id__in=over_target_proposal_ids.values("object_id")
+        )
         if ignore_btns:
-            relevant_proposal_ids -= Reaction.objects.filter(
-                button__in=ignore_btns,
-                object_id__in=prop_qs.values("pk"),
-                content_type=ContentType.objects.get_for_model(Proposal),
-            ).values_list("object_id", flat=True)
-
+            relevant_proposal_ids = relevant_proposal_ids.exclude(
+                object_id__in=Reaction.objects.filter(
+                    button__in=ignore_btns,
+                    object_id__in=prop_qs.values("pk"),
+                    content_type=ContentType.objects.get_for_model(Proposal),
+                ).values_list("object_id", flat=True)
+            )
         prop_qs = Proposal.objects.filter(
             pk__in=relevant_proposal_ids, agenda_item__meeting=meeting
         )
+        if unhandled_count := prop_qs.count():
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"Found {unhandled_count} proposals to set as unhandled."
+                )
+            )
+        else:
+            self.stdout.write(self.style.WARNING("Nothing set as unhandled."))
+
         with transaction.atomic(durable=True):
             with set_actor(user):
                 for prop in prop_qs:
