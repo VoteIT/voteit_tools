@@ -7,7 +7,6 @@ from django.db import transaction
 from voteit.agenda.workflows import AgendaItemWf
 from voteit.meeting.models import Meeting
 from voteit.proposal.models import Proposal
-
 from voteit.proposal.workflows import ProposalWf
 from voteit.reactions.models import Reaction
 from voteit.reactions.models import ReactionButton
@@ -59,7 +58,7 @@ class Command(BaseCommand):
         if not republish_target_btn.target:
             exit("Återpublicera-knappen måste ha target satt.")
         btns = meeting.reaction_buttons.filter(pk__in=options["b"], flag_mode=True)
-        if btns.count() != len(options["p"]):
+        if btns.count() != len(options["b"]):
             exit("Knapp-IDn stämmer inte med mötesknappar i flagg-läge.")
         if options["i"]:
             ignore_btns = meeting.reaction_buttons.filter(
