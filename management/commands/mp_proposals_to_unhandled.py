@@ -43,6 +43,14 @@ class Command(BaseCommand):
             required=True,
         )
         parser.add_argument(
+            "--ai",
+            help="Välj bara från dessa dagordningspunkter (annars alla kommande/pågående)",
+            required=True,
+            action="extend",
+            nargs="+",
+            type=int,
+        )
+        parser.add_argument(
             "--commit",
             help="Commit result to db",
             action="store_true",
@@ -71,8 +79,10 @@ class Command(BaseCommand):
         else:
             ignore_btns = []
         user = meeting.participants.get(pk=options.get("u"))
-
-        ai_qs = meeting.agenda_items.filter(state__in=self.AI_STATES)
+        if options["ai"]:
+            ai_qs = meeting.agenda_items.filter(pk__in=options["ai"])
+        else:
+            ai_qs = meeting.agenda_items.filter(state__in=self.AI_STATES)
         if ai_count := ai_qs.count():
             self.stdout.write(f"Processing {ai_count} agenda items")
         else:
