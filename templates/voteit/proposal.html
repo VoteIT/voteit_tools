@@ -1,0 +1,18 @@
+{% autoescape off %}
+<h4>#{{ proposal.prop_id }} / {{ proposal.state }}</h4>
+<p>av
+{% if proposal.meeting_group %}
+    {{ proposal.meeting_group }}
+{% else %}
+    {{ proposal.author.get_full_name }} ({{proposal.author.userid}})
+{% endif %}</p>
+{% if proposal.paragraph %}
+    <p>Föreslår ändring av #{{ proposal.ptag }}:</p>
+    {{ proposal.body_diff_brief }}
+{% else %}
+    {{ proposal.body }}
+{% endif %}
+{% if proposal.tags %}
+<p>{% for tag in proposal.tags %}#{{tag}} {% endfor %}</p>
+{% endif %}
+{% endautoescape %}
