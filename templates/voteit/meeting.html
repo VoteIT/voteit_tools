@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title }}</title>
+    <style>
+        body {
+            font-face: Karla;
+        }
+        .text-diff-added {
+            text-decoration: underline;
+            color: rgb(29,164,117);
+        }
+        .text-diff-removed {
+            text-decoration: line-through;
+            color: rgb(211,47,47);
+        }
+        .btn.accent {}
+        .primary {
+            color: rgb(55,41,216);
+        }
+        .secondary {
+            color: rgb(117,117,117);
+        }
+        .error {
+            color: rgb(255,87,34);
+        }
+        .info {
+            color: rgb(3,169,244);
+        }
+        .warning {
+            color: rgb(211,47,47);
+        }
+        .success {
+            color: rgb(29,164,117);
+        }
+    </style>
+</head>
+<body>
+{% autoescape off %}
+{% for txt in rendered_ais %}{{ txt }}{% endfor %}
+{% endautoescape %}
+</body>
+</html>

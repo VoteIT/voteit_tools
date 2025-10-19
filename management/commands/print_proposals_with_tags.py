@@ -81,4 +81,9 @@ class Command(BaseCommand):
                     {"agenda_item": agenda_item, "proposals": rendered_proposals},
                 )
             )
-        self.stdout.write("\n".join(rendered_ais))
+        self.stdout.write(
+            render_to_string(
+                "voteit/meeting.html",
+                {"rendered_ais": rendered_ais, "title": meeting.title},
+            )
+        )
