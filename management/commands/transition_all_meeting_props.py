@@ -17,28 +17,28 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(dest="meeting", help="Meeting PK", type=int)
-        parser.add_argument(dest="source_state", help="Från state", type=str)
-        parser.add_argument(dest="transition", help="Namn på transition", type=str)
+        parser.add_argument("-s", help="Från state", type=str)
+        parser.add_argument("-t", help="Namn på transition", type=str)
         parser.add_argument("-f", help="PK för eventuell flagga att sätta")
         parser.add_argument(
             "-u",
-            help="PK för användare som utför operationen - måste vara del av mötet",
+            help="userid för användare som utför operationen - måste vara del av mötet",
             required=True,
-            type=int,
+            type=str,
         )
         parser.add_argument(
             "--commit", help="Commit result to db", action="store_true", default=False
         )
 
     def handle(self, *args, **options):
-        meeting: Meeting = Meeting.objects.get(pk=options.get("meeting"))
-        source_state = options.get("source_state")
-        transition = getattr(Proposal, options.get("transition"))
+        meeting: Meeting = Meeting.objects.get(pk=options["meeting"])
+        source_state = options["s"]
+        transition = getattr(Proposal, options["t"])
         assert source_state in ProposalWf.states, "Invalid source state"
         assert hasattr(transition, "_django_fsm"), "Invalid transition"
-        user = meeting.participants.get(pk=options["u"])
+        user = meeting.participants.get(userid=options["u"])
         flag_btn = None
-        if flag_pk := options.get("f"):
+        if flag_pk := options["f"]:
             flag_btn = meeting.reaction_buttons.get(pk=flag_pk)
             assert flag_btn.flag_mode, "Reaction button must be a flag button"
             self.stdout.write(f"Will flag proposals that change state with {flag_btn}")
