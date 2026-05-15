@@ -7,7 +7,6 @@ from django.db import transaction
 from voteit.agenda.workflows import AgendaItemWf
 from voteit.meeting.models import Meeting
 from voteit.proposal.models import Proposal
-
 from voteit.proposal.workflows import ProposalWf
 from voteit.reactions.models import ReactionButton
 
@@ -16,6 +15,7 @@ class Command(BaseCommand):
     help = "Återpublicera förslag som kommer över gräns"
     # PROPOSAL_WF_STATES = set(ProposalWf.states) - {ProposalWf.RETRACTED}
     AI_STATES = (AgendaItemWf.ONGOING,)
+    AI_STATES_UPCOMING = (AgendaItemWf.ONGOING, AgendaItemWf.UPCOMING)
     PROP_STATES = (ProposalWf.UNHANDLED,)
 
     def add_arguments(self, parser):
@@ -26,8 +26,15 @@ class Command(BaseCommand):
         parser.add_argument("-f", help="PK för eventuellt flagga att sätta")
         parser.add_argument(
             "-u",
-            help="PK för användare som utför operationen - måste vara del av mötet",
+            help="Userid för användare som utför operationen - måste vara del av mötet",
             required=True,
+            type=str,
+        )
+        parser.add_argument(
+            "--upcoming",
+            help="Include proposals from upcoming agenda items",
+            action="store_true",
+            default=False,
         )
         parser.add_argument(
             "--commit", help="Commit result to db", action="store_true", default=False
@@ -45,9 +52,10 @@ class Command(BaseCommand):
             flag_btn = meeting.reaction_buttons.get(pk=flag_pk)
             assert flag_btn.flag_mode, "Flagga-knappen måste ha flag_mode satt"
             self.stdout.write(f"Will flag proposals that change state with {flag_btn}")
-        user = meeting.participants.get(pk=options.get("u"))
+        user = meeting.participants.get(userid=options.get("u"))
 
-        ai_qs = meeting.agenda_items.filter(state__in=self.AI_STATES)
+        ai_states = self.AI_STATES_UPCOMING if options["upcoming"] else self.AI_STATES
+        ai_qs = meeting.agenda_items.filter(state__in=ai_states)
         if ai_count := ai_qs.count():
             self.stdout.write(f"Processing {ai_count} agenda items")
         else:
