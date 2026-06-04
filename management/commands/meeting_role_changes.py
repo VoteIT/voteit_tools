@@ -66,17 +66,24 @@ class Command(BaseCommand):
             return
 
         self.stdout.write(f"\nFound {len(results)} change(s):\n")
-        self.stdout.write("\t".join(["timestamp", "action", "actor", "actor_pk"]))
+        self.stdout.write("\t".join(["timestamp", "action", "actor", "actor_pk", "target", "target_pk"]))
         for entry, action in results:
+            try:
+                mr = MeetingRoles.objects.get(pk=entry.object_id)
+                target_name = mr.user.get_full_name() or mr.user.email
+                target_pk = f"{mr.user_id}"
+            except MeetingRoles.DoesNotExist:
+                target_name = "-"
+                target_pk = "-"
             self.stdout.write(
                 "\t".join(
                     [
                         f"{entry.timestamp:%Y-%m-%d %H:%M:%S}",
                         action,
-                        entry.actor_id
-                        and f"{entry.actor.get_full_name()}"
-                        or "-system",
+                        entry.actor_id and entry.actor.get_full_name() or "-system",
                         f"{entry.actor_id}",
+                        target_name,
+                        target_pk,
                     ]
                 )
             )
