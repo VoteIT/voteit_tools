@@ -7,11 +7,11 @@ from django.core.management import BaseCommand
 from django.db import transaction
 
 from voteit.agenda.models import AgendaItem
-from voteit.agenda.workflows import AgendaItemWf
+from voteit.agenda.statemachines import AgendaItemStateMachine
 from voteit.core.models import User
 from voteit.meeting.models import Meeting
 from voteit.meeting.roles import ROLE_PARTICIPANT, ROLE_POTENTIAL_VOTER
-from voteit.meeting.workflows import MeetingWf
+from voteit.meeting.statemachines import MeetingStateMachine
 from voteit.organisation.models import Organisation
 from voteit.poll.app.er_policies.auto_before_poll import AutoBeforePoll
 from voteit.proposal.models import Proposal
@@ -32,11 +32,11 @@ class Command(BaseCommand):
         meeting = Meeting.objects.create(
             er_policy_name=AutoBeforePoll.name,
             organisation=org,
-            state=MeetingWf.ONGOING,
+            state=MeetingStateMachine.ongoing.value,
             title="Scripted demo meeting",
         )
         ai = AgendaItem.objects.create(
-            title="Demo AI", meeting=meeting, state=AgendaItemWf.ONGOING
+            title="Demo AI", meeting=meeting, state=AgendaItemStateMachine.ongoing.value
         )
         # Create users
         password_hash = make_password(password)  # Use same password hash for speed
