@@ -62,4 +62,7 @@ class Command(BaseCommand):
                 .values_list(user_field, flat=True)
                 .distinct()
             )
+        self.stdout.write("")
         self.stdout.write(f"{'Any of the above':<30}{'':>8}{len(active_users):>8}")
+        inactive = meeting.participants.exclude(pk__in=active_users).count()
+        self.stdout.write(f"{'Observers/Inactive':<30}{'':>8}{inactive:>8}")
