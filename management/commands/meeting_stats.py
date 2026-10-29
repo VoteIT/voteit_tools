@@ -3,6 +3,7 @@ from django.db.models import Count
 
 from voteit.discussion.models import DiscussionPost
 from voteit.meeting.models import Meeting
+from voteit.notes import NoteIntent
 from voteit.notes.models import Note
 from voteit.poll.models import Vote
 from voteit.proposal.models import Proposal
@@ -29,7 +30,16 @@ class Command(BaseCommand):
                 "author",
             ),
             ("Votes", Vote.objects.filter(poll__meeting=meeting), "user"),
-            ("Notes", Note.objects.filter(meeting=meeting), "user"),
+            (
+                "Notes with text",
+                Note.objects.filter(meeting=meeting).exclude(body=""),
+                "user",
+            ),
+            (
+                "Notes with intent",
+                Note.objects.filter(meeting=meeting).exclude(intent=NoteIntent.BLANK),
+                "user",
+            ),
             (
                 "Speaker entries",
                 Speaker.objects.filter(
